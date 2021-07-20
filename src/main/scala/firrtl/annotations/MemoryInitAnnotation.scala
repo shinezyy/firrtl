@@ -55,11 +55,13 @@ case class MemoryArrayInitAnnotation(target: ReferenceTarget, values: Seq[BigInt
 case class MemoryFileInlineAnnotation(
   target:      ReferenceTarget,
   filename:    String,
-  hexOrBinary: MemoryLoadFileType.FileType = MemoryLoadFileType.Hex)
+  hexOrBinary: MemoryLoadFileType.FileType = MemoryLoadFileType.Hex,
+  info: String)
     extends MemoryInitAnnotation {
   require(filename.trim.nonEmpty, "empty filename not allowed in MemoryFileInlineAnnotation")
+  println(s"Annotate ${target} ${target.pathlessTarget} with $info")
   override def duplicate(n: ReferenceTarget): Annotation = copy(n)
-  override def initValue:    MemoryInitValue = MemoryFileInlineInit(filename, hexOrBinary)
+  override def initValue:    MemoryInitValue = MemoryFileInlineInit(filename, hexOrBinary, info)
   override def isRandomInit: Boolean = false
   override private[firrtl] def dedup: Option[(Any, Annotation, ReferenceTarget)] = Some(
     ((target.pathlessTarget, filename), copy(target = target.pathlessTarget), target)

@@ -20,7 +20,7 @@ sealed trait MemoryInitValue
 case object MemoryRandomInit extends MemoryInitValue
 case class MemoryScalarInit(value: BigInt) extends MemoryInitValue
 case class MemoryArrayInit(values: Seq[BigInt]) extends MemoryInitValue
-case class MemoryFileInlineInit(filename: String, hexOrBinary: MemoryLoadFileType.FileType) extends MemoryInitValue
+case class MemoryFileInlineInit(filename: String, hexOrBinary: MemoryLoadFileType.FileType, info: String) extends MemoryInitValue
 
 /** default Emitter behavior for memories */
 case object MemoryEmissionOptionDefault extends MemoryEmissionOption

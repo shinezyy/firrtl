@@ -508,13 +508,19 @@ class VerilogEmitter extends SeqTransform with Emitter {
     private val emissionAnnos = annotations.collect {
       case m: SingleTargetAnnotation[ReferenceTarget] @unchecked with EmissionOption => m
     }
+    emissionAnnos.foreach {
+      case a: MemoryInitAnnotation => {
+        println(a)
+      }
+      case _ =>
+    }
 
     // Check for non-local memory annotations (error if found)
     emissionAnnos.foreach {
       case a: MemoryInitAnnotation => {
         if (!a.target.isLocal)
           throw new FirrtlUserException(
-            "At least one memory annotation did not deduplicate: got non-local annotation $a from [[DedupAnnotationsTransform]]"
+            s"At least one memory annotation did not deduplicate: got non-local annotation $a from [[DedupAnnotationsTransform]]"
           )
       }
       case _ =>
@@ -891,7 +897,8 @@ class VerilogEmitter extends SeqTransform with Emitter {
             rstring,
             ";"
           )
-        case MemoryFileInlineInit(filename, hexOrBinary) =>
+        case MemoryFileInlineInit(filename, hexOrBinary, info) =>
+          println(s"Matched file inline init for $info")
           val readmem = hexOrBinary match {
             case MemoryLoadFileType.Binary => "$readmemb"
             case MemoryLoadFileType.Hex    => "$readmemh"

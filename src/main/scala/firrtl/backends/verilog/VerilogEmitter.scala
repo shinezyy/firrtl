@@ -1,26 +1,17 @@
 package firrtl
 
 import java.io.Writer
-
 import firrtl.ir._
 import firrtl.PrimOps._
 import firrtl.Utils._
 import firrtl.WrappedExpression._
 import firrtl.traversals.Foreachers._
-import firrtl.annotations.{
-  Annotation,
-  CircuitTarget,
-  MemoryInitAnnotation,
-  MemoryLoadFileType,
-  MemoryNoSynthInit,
-  MemorySynthInit,
-  ReferenceTarget,
-  SingleTargetAnnotation
-}
+import firrtl.annotations.{Annotation, CircuitTarget, MemoryInitAnnotation, MemoryLoadFileType, MemoryNoSynthInit, MemorySynthInit, ReferenceTarget, SingleTargetAnnotation}
+import firrtl.options.Dependency
 import firrtl.passes.LowerTypes
 import firrtl.passes.MemPortUtils._
 import firrtl.stage.TransformManager
-import firrtl.transforms.FixAddingNegativeLiterals
+import firrtl.transforms.{DumperTransform, FixAddingNegativeLiterals}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -82,7 +73,7 @@ class VerilogEmitter extends SeqTransform with Emitter {
   def outputForm = LowForm
 
   override def prerequisites = firrtl.stage.Forms.AssertsRemoved ++
-    firrtl.stage.Forms.LowFormOptimized
+    firrtl.stage.Forms.LowFormOptimized :+ Dependency[DumperTransform]
 
   override def optionalPrerequisiteOf = Seq.empty
 

@@ -49,7 +49,10 @@ class DeadCodeElimination extends Transform with RegisteredTransform with Depend
       Dependency[firrtl.AddDescriptionNodes]
     )
 
-  override def invalidates(a: Transform) = false
+  override def invalidates(a: Transform) = a match {
+    case x: DumperTransform => true
+    case x => false
+  }
 
   val options = Seq(
     new ShellOption[Unit](

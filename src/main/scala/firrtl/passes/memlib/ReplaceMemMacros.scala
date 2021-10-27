@@ -255,6 +255,9 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
         m.readwriters.foreach { w => memPortMap(s"${m.name}.$w.wmask") = EmptyExpression }
       }
       val moduleTarget = ModuleTarget(circuit, mname)
+      val (p, thisModule) = if (moduleTarget.toString.contains("Tage")) {
+        (true, m.name)
+      } else (false, "")
       m.memRef match {
         case None =>
           // prototype mem
@@ -270,6 +273,11 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
           val renameFrom = moduleTarget.ref(m.name)
           val renameTo = moduleTarget.instOf(m.name, memModuleName).instOf(newMemBBName, newMemBBName)
           renameMap.record(renameFrom, renameTo)
+          if (p) {
+            Seq("R0_addr", "R0_en", "R0_data", "W0_addr", "W0_en", "W0_data", "W0_mask").foreach { p =>
+              println(thisModule + "." + memModuleName + "_ext." + p + ",")
+            }
+          }
           WDefInstance(m.info, m.name, memModuleName, UnknownType)
       }
     case sx =>

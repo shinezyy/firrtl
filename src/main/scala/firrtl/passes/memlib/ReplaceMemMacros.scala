@@ -274,9 +274,17 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
           val renameTo = moduleTarget.instOf(m.name, memModuleName).instOf(newMemBBName, newMemBBName)
           renameMap.record(renameFrom, renameTo)
           if (p) {
-            Seq("R0_addr", "R0_en", "R0_data", "W0_addr", "W0_en", "W0_data", "W0_mask").foreach { p =>
-              println(thisModule + "." + memModuleName + "_ext." + p + ",")
-            }
+            val ports = Seq("R0_addr", "R0_en", "R0_data", "W0_addr", "W0_en", "W0_data") ++ (if (m.maskGran.isDefined) Seq("W0_mask") else Seq())
+            println(
+              s"""integer trace_${thisModule}_fd;
+                 |initial begin
+                 |  trace_${thisModule}_fd = $$fopen("build/trace/mem_${thisModule}.csv", "w");
+                 |  $$fwrite(trace_${thisModule}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
+                 |end
+                 |always @(posedge clock) begin
+                 |  $$fwrite(trace_${thisModule}_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(thisModule + "." + memModuleName + "_ext." + _).mkString(",")});  // @[dumper]
+                 |end
+                 |""".stripMargin)
           }
           WDefInstance(m.info, m.name, memModuleName, UnknownType)
       }

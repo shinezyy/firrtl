@@ -11,7 +11,7 @@ import firrtl.options.Dependency
 import firrtl.passes.LowerTypes
 import firrtl.passes.MemPortUtils._
 import firrtl.stage.TransformManager
-import firrtl.transforms.{DumperTransform, FixAddingNegativeLiterals}
+import firrtl.transforms. FixAddingNegativeLiterals
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -73,7 +73,7 @@ class VerilogEmitter extends SeqTransform with Emitter {
   def outputForm = LowForm
 
   override def prerequisites = firrtl.stage.Forms.AssertsRemoved ++
-    firrtl.stage.Forms.LowFormOptimized :+ Dependency[DumperTransform]
+    firrtl.stage.Forms.LowFormOptimized
 
   override def optionalPrerequisiteOf = Seq.empty
 
@@ -1307,6 +1307,24 @@ class VerilogEmitter extends SeqTransform with Emitter {
     def emit_verilog(): DefModule = {
 
       build_netlist(m.body)
+      if (m.name.contains("Tage_SC")) {
+        val inputs = m.ports.filter(_.direction == Input).filter(_.name != "clock")
+        val outputs = m.ports.filter(_.direction == Output)
+
+        val ports = inputs ++ outputs
+        val portNames = ports.map(x => (if (x.direction == Input) "in_" else "out_") + x.name)
+
+        println(
+          s"""integer trace_io_fd;
+             |initial begin
+             |  trace_io_fd = $$fopen("build/trace/io.csv", "w");
+             |  $$fwrite(trace_io_fd, "${portNames.mkString(",") + "\\n"}");
+             |end
+             |always @(posedge clock) begin
+             |  $$fwrite(trace_io_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(_.name).mkString(",")});  // @[dumper]
+             |end
+             |""".stripMargin)
+      }
       build_ports()
       build_streams(m.body)
       emit_streams()

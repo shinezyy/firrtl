@@ -278,6 +278,8 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
               s"""integer trace_${thisModule}_fd;
                  |initial begin
                  |  trace_${thisModule}_fd = $$fopen("build/trace/mem_${thisModule}.csv", "w");
+                 |  $$fwrite(trace_${thisModule}_fd, "${Seq("name", "width", "depth", "mask").mkString(",") + "\\n"}");
+                 |  $$fwrite(trace_${thisModule}_fd, "${Seq(memModuleName, bitWidth(m.dataType), m.depth, m.maskGran).mkString(",") + "\\n"}");
                  |  $$fwrite(trace_${thisModule}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
                  |end
                  |always @(posedge clock) begin

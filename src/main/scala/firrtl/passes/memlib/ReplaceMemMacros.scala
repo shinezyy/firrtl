@@ -14,6 +14,7 @@ import firrtl.passes.wiring._
 import firrtl.stage.Forms
 import firrtl.renamemap.MutableRenameMap
 
+import java.io.FileWriter
 import scala.collection.mutable.ListBuffer
 
 /** Annotates the name of the pins to add for WiringTransform */
@@ -255,7 +256,7 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
         m.readwriters.foreach { w => memPortMap(s"${m.name}.$w.wmask") = EmptyExpression }
       }
       val moduleTarget = ModuleTarget(circuit, mname)
-      val (p, thisModule) = if (moduleTarget.toString.contains("Tage")) {
+      val (p, thisModule) = if (moduleTarget.toString contains "DCacheWrapper") {
         (true, m.name)
       } else (false, "")
       m.memRef match {
@@ -274,19 +275,24 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
           val renameTo = moduleTarget.instOf(m.name, memModuleName).instOf(newMemBBName, newMemBBName)
           renameMap.record(renameFrom, renameTo)
           if (p) {
-            val ports = Seq("R0_addr", "R0_en", "R0_data", "W0_addr", "W0_en", "W0_data") ++ (if (m.maskGran.isDefined) Seq("W0_mask") else Seq())
-            println(
-              s"""integer trace_${thisModule}_fd;
-                 |initial begin
-                 |  trace_${thisModule}_fd = $$fopen("build/trace/mem_${thisModule}.csv", "w");
-                 |  $$fwrite(trace_${thisModule}_fd, "${Seq("name", "width", "depth", "mask").mkString(",") + "\\n"}");
-                 |  $$fwrite(trace_${thisModule}_fd, "${Seq(memModuleName, bitWidth(m.dataType), m.depth, m.maskGran).mkString(",") + "\\n"}");
-                 |  $$fwrite(trace_${thisModule}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
-                 |end
-                 |always @(posedge clock) begin
-                 |  $$fwrite(trace_${thisModule}_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(thisModule + "." + memModuleName + "_ext." + _).mkString(",")});  // @[dumper]
-                 |end
-                 |""".stripMargin)
+            val ports = (m.readers ++ m.writers).flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_data") ++ (if (m.maskGran.isDefined) Seq(s"${x}_mask") else Seq())) ++
+              m.readwriters.flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_wmode", s"${x}_wdata", s"${x}_rdata") ++ (if (m.maskGran.isDefined) Seq(s"${x}_wmask") else Seq()))
+            val fw = new FileWriter("build/dumper.v", true)
+            try {
+              fw.write(
+                s"""integer trace_${thisModule}_fd;
+                   |initial begin
+                   |  trace_${thisModule}_fd = $$fopen("build/trace/mem_${thisModule}.csv", "w");
+                   |  $$fwrite(trace_${thisModule}_fd, "${Seq("name", "width", "depth", "mask", "nreader", "nwriter", "nreadwriter").mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${thisModule}_fd, "${Seq(memModuleName, bitWidth(m.dataType), m.depth, m.maskGran, m.readers.length, m.writers.length, m.readwriters.length).mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${thisModule}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
+                   |end
+                   |always @(posedge clock) begin
+                   |  $$fwrite(trace_${thisModule}_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(thisModule + "_" + _).mkString(",")});  // @[dumper]
+                   |end
+                   |""".stripMargin)
+            }
+            finally fw.close()
           }
           WDefInstance(m.info, m.name, memModuleName, UnknownType)
       }

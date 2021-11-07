@@ -1,6 +1,6 @@
 package firrtl
 
-import java.io.Writer
+import java.io.{FileReader, FileWriter, Writer}
 import firrtl.ir._
 import firrtl.PrimOps._
 import firrtl.Utils._
@@ -11,7 +11,7 @@ import firrtl.options.Dependency
 import firrtl.passes.LowerTypes
 import firrtl.passes.MemPortUtils._
 import firrtl.stage.TransformManager
-import firrtl.transforms. FixAddingNegativeLiterals
+import firrtl.transforms.FixAddingNegativeLiterals
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -1166,7 +1166,7 @@ class VerilogEmitter extends SeqTransform with Emitter {
       }
     }
 
-    def emit_streams(): Unit = {
+    def emit_streams(dump: Boolean): Unit = {
       build_description(description).foreach(emit(_))
       emit(Seq("module ", m.name, "(", m.info))
       for (x <- portdefs) emit(Seq(tab, x))
@@ -1291,6 +1291,13 @@ class VerilogEmitter extends SeqTransform with Emitter {
         }
       }
 
+      if (dump) {
+        import java.nio.charset.StandardCharsets
+        import java.nio.file.{Files, Paths}
+        val dp = Files.readString(Paths.get("build/dumper.v"), StandardCharsets.US_ASCII)
+        emit(Seq(dp))
+      }
+
       emit(Seq("endmodule"))
     }
 
@@ -1302,27 +1309,36 @@ class VerilogEmitter extends SeqTransform with Emitter {
     def emit_verilog(): DefModule = {
 
       build_netlist(m.body)
-      if (m.name.contains("Tage_SC")) {
+
+      var dump = false
+
+      if (m.name contains "DCacheWrapper") {
+        dump = true
+
         val inputs = m.ports.filter(_.direction == Input).filter(_.name != "clock")
         val outputs = m.ports.filter(_.direction == Output)
 
         val ports = inputs ++ outputs
         val portNames = ports.map(x => (if (x.direction == Input) "in_" else "out_") + x.name)
 
-        println(
-          s"""integer trace_io_fd;
-             |initial begin
-             |  trace_io_fd = $$fopen("build/trace/io.csv", "w");
-             |  $$fwrite(trace_io_fd, "${portNames.mkString(",") + "\\n"}");
-             |end
-             |always @(posedge clock) begin
-             |  $$fwrite(trace_io_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(_.name).mkString(",")});  // @[dumper]
-             |end
-             |""".stripMargin)
+        val fw = new FileWriter("build/dumper.v", true)
+        try {
+          fw.write(
+            s"""integer trace_io_fd;
+               |initial begin
+               |  trace_io_fd = $$fopen("build/trace/io.csv", "w");
+               |  $$fwrite(trace_io_fd, "${portNames.mkString(",") + "\\n"}");
+               |end
+               |always @(posedge clock) begin
+               |  $$fwrite(trace_io_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(_.name).mkString(",")});  // @[dumper]
+               |end
+               |""".stripMargin)
+        }
+        finally fw.close()
       }
       build_ports()
       build_streams(m.body)
-      emit_streams()
+      emit_streams(dump)
       m
     }
 

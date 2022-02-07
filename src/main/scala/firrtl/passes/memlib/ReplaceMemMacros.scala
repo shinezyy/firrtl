@@ -274,8 +274,8 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
           val renameTo = moduleTarget.instOf(m.name, memModuleName).instOf(newMemBBName, newMemBBName)
           renameMap.record(renameFrom, renameTo)
           if (p) {
-            val ports = (m.readers ++ m.writers).flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_data") ++ (if (m.maskGran.isDefined) Seq(s"${x}_mask") else Seq())) ++
-              m.readwriters.flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_wmode", s"${x}_wdata", s"${x}_rdata") ++ (if (m.maskGran.isDefined) Seq(s"${x}_wmask") else Seq()))
+            val ports = (m.readers ++ m.writers).flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_data") ++ (if (m.maskGran.isDefined && m.maskGran.get != bitWidth(m.dataType)) Seq(s"${x}_mask") else Seq())) ++
+              m.readwriters.flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_wmode", s"${x}_wdata", s"${x}_rdata") ++ (if (m.maskGran.isDefined && m.maskGran.get != bitWidth(m.dataType)) Seq(s"${x}_wmask") else Seq()))
             val fw = new FileWriter("build/dumper.v", true)
             try {
               fw.write(

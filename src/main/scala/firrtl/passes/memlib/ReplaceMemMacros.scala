@@ -292,6 +292,15 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
                    |""".stripMargin)
             }
             finally fw.close()
+
+            val replayer = new FileWriter("build/replayer.sh", true)
+            try {
+              replayer.write(
+                s"""mkfifo build/trace/mem_${thisModule}.csv
+                   |$$REPLAYER < build/trace/mem_${thisModule}.csv &
+                   |""".stripMargin)
+            }
+            finally replayer.close()
           }
           WDefInstance(m.info, m.name, memModuleName, UnknownType)
       }

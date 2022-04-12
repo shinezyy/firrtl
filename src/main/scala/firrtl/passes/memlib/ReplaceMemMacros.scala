@@ -255,9 +255,15 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
         m.readwriters.foreach { w => memPortMap(s"${m.name}.$w.wmask") = EmptyExpression }
       }
       val moduleTarget = ModuleTarget(circuit, mname)
-      val (p, thisModule) = if (moduleTarget.toString contains "DCacheWrapper") {
-        (true, m.name)
-      } else (false, "")
+      val prefix_name = moduleTarget.toString
+      val (p, thisModule, fullFilename, subTopName) = if (prefix_name contains "HuanCun") {
+        println(s"${prefix_name} contains 'HuanCun'")
+        prefix_name.split('|').foreach(println(_))
+        (true, m.name, (prefix_name + '_' + m.name).replaceAll("\\W", "_"), prefix_name.split('|')(1))
+      } else {
+        println(s"${prefix_name} does not contain 'HuanCun'")
+        (false, "", "", "")
+      }
       m.memRef match {
         case None =>
           // prototype mem
@@ -276,23 +282,23 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
           if (p) {
             val ports = (m.readers ++ m.writers).flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_data") ++ (if (m.maskGran.isDefined && m.maskGran.get != bitWidth(m.dataType)) Seq(s"${x}_mask") else Seq())) ++
               m.readwriters.flatMap(x => Seq(s"${x}_addr", s"${x}_en", s"${x}_wmode", s"${x}_wdata", s"${x}_rdata") ++ (if (m.maskGran.isDefined && m.maskGran.get != bitWidth(m.dataType)) Seq(s"${x}_wmask") else Seq()))
-            val fw = new FileWriter("build/dumper.v", true)
+            val fw = new FileWriter(s"build/${subTopName}_dumper.v", true)
             try {
               fw.write(
-                s"""integer trace_${thisModule}_fd;
+                s"""integer trace_${fullFilename}_fd;
                    |initial begin
-                   |  if ($$test$$plusargs("LOAD_SRAM")) begin
-                   |    $$readmemh("build/trace/${thisModule}.hex", ${thisModule}.${memModuleName}_ext.ram); // @[restorer]
-                   |    trace_${thisModule}_fd = 0;
+                   |  if (1'($$test$$plusargs("LOAD_SRAM"))) begin
+                   |    $$readmemh("build/trace/${fullFilename}.hex", ${thisModule}.${memModuleName}_ext.ram); // @[restorer]
+                   |    trace_${fullFilename}_fd = 0;
                    |  end else begin
-                   |    trace_${thisModule}_fd = $$fopen("build/trace/mem_${thisModule}.csv", "w");
+                   |    trace_${fullFilename}_fd = $$fopen("build/trace/mem_${fullFilename}.csv", "w");
                    |  end
-                   |  $$fwrite(trace_${thisModule}_fd, "${Seq("name", "width", "depth", "mask", "nreader", "nwriter", "nreadwriter").mkString(",") + "\\n"}");
-                   |  $$fwrite(trace_${thisModule}_fd, "${Seq(thisModule, bitWidth(m.dataType), m.depth, m.maskGran, m.readers.length, m.writers.length, m.readwriters.length).mkString(",") + "\\n"}");
-                   |  $$fwrite(trace_${thisModule}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${fullFilename}_fd, "${Seq("name", "width", "depth", "mask", "nreader", "nwriter", "nreadwriter").mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${fullFilename}_fd, "${Seq(thisModule, bitWidth(m.dataType), m.depth, m.maskGran, m.readers.length, m.writers.length, m.readwriters.length).mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${fullFilename}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
                    |end
                    |always @(posedge clock) begin
-                   |  $$fwrite(trace_${thisModule}_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(thisModule + "_" + _).mkString(",")});  // @[dumper]
+                   |  $$fwrite(trace_${fullFilename}_fd, "${("%b," * ports.length).dropRight(1) + "\\n"}", ${ports.map(thisModule + "_" + _).mkString(",")});  // @[dumper]
                    |end
                    |""".stripMargin)
             }
@@ -301,8 +307,8 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
             val replayer = new FileWriter("build/replayer.sh", true)
             try {
               replayer.write(
-                s"""mkfifo build/trace/mem_${thisModule}.csv
-                   |$$REPLAYER < build/trace/mem_${thisModule}.csv &
+                s"""mkfifo build/trace/mem_${fullFilename}.csv
+                   |$$REPLAYER < build/trace/mem_${fullFilename}.csv &
                    |""".stripMargin)
             }
             finally replayer.close()
@@ -331,6 +337,7 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
   }
 
   def execute(state: CircuitState): CircuitState = {
+    println("Execute replacing memory Macros")
     val annotatedMemoriesBuffer: collection.mutable.ListBuffer[DefAnnotatedMemory] = ListBuffer[DefAnnotatedMemory]()
     val c = state.circuit
     val namespace = Namespace(c)

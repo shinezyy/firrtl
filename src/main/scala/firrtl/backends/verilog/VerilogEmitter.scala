@@ -1299,7 +1299,7 @@ class VerilogEmitter extends SeqTransform with Emitter {
       if (dump) {
         import java.nio.charset.StandardCharsets
         import java.nio.file.{Files, Paths}
-        val dp = Files.readString(Paths.get("build/dumper.v"), StandardCharsets.US_ASCII)
+        val dp = Files.readString(Paths.get(s"build/${m.name}_dumper.v"), StandardCharsets.US_ASCII)
         emit(Seq(dp))
       }
 
@@ -1316,9 +1316,15 @@ class VerilogEmitter extends SeqTransform with Emitter {
       build_netlist(m.body)
 
       var dump = false
+      val dump_io = false
+      val dump_module_name = "HuanCun"
 
-      if (m.name contains "DCacheWrapper") {
+      if (m.name contains dump_module_name) {
         dump = true
+      }
+
+      if (m.name.contains(dump_module_name) && dump_io) {
+        // dump = true
 
         val inputs = m.ports.filter(_.direction == Input).filter(_.name != "clock")
         val outputs = m.ports.filter(_.direction == Output)

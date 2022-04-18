@@ -260,7 +260,8 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
       val (p, thisModule, fullFilename, subTopName) = if (prefix_name contains "HuanCun") {
         println(s"${prefix_name} contains 'HuanCun'")
         prefix_name.split('|').foreach(println(_))
-        (true, m.name, (prefix_name + '_' + m.name).replaceAll("\\W", "_"), prefix_name.split('|')(1))
+        val sub_top_name = prefix_name.split('|')(1)
+        (true, m.name, (sub_top_name + '_' + m.name).replaceAll("\\W", "_"), sub_top_name)
       } else {
         println(s"${prefix_name} does not contain 'HuanCun'")
         (false, "", "", "")
@@ -295,7 +296,7 @@ class ReplaceMemMacros extends Transform with DependencyAPIMigration {
                    |    trace_${fullFilename}_fd = $$fopen("build/trace/mem_${fullFilename}.csv", "w");
                    |  end
                    |  $$fwrite(trace_${fullFilename}_fd, "${Seq("name", "width", "depth", "mask", "nreader", "nwriter", "nreadwriter").mkString(",") + "\\n"}");
-                   |  $$fwrite(trace_${fullFilename}_fd, "${Seq(thisModule, bitWidth(m.dataType), m.depth, m.maskGran, m.readers.length, m.writers.length, m.readwriters.length).mkString(",") + "\\n"}");
+                   |  $$fwrite(trace_${fullFilename}_fd, "${Seq(fullFilename, bitWidth(m.dataType), m.depth, m.maskGran, m.readers.length, m.writers.length, m.readwriters.length).mkString(",") + "\\n"}");
                    |  $$fwrite(trace_${fullFilename}_fd, "${ports.map(thisModule + "_" + _).mkString(",") + "\\n"}");
                    |end
                    |always @(posedge clock) begin
